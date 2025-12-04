@@ -28,6 +28,8 @@ OD_ATTR_PERSIST_COMM OD_PERSIST_COMM_t OD_PERSIST_COMM = {
     .x1012_COB_IDTimeStampObject = 0x00000100,
     .x1014_COB_ID_EMCY = 0x00000080,
     .x1015_inhibitTimeEMCY = 0x0000,
+    .x1016_consumerHeartbeatTime_sub0 = 0x08,
+    .x1016_consumerHeartbeatTime = {0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000},
     .x1017_producerHeartbeatTime = 0x0000,
     .x1018_identity = {
         .highestSub_indexSupported = 0x04,
@@ -189,6 +191,8 @@ OD_ATTR_RAM OD_RAM_t OD_RAM = {
     .x1010_storeParameters = {0x00000003, 0x00000001, 0x00000001, 0x00000003, 0x00000001, 0x00000003},
     .x1011_restoreDefaultParameters_sub0 = 0x06,
     .x1011_restoreDefaultParameters = {0x00000001, 0x00000001, 0x00000001, 0x00000001, 0x00000001, 0x00000001},
+    .x1028_emergencyConsumer_sub0 = 0x01,
+    .x1028_emergencyConsumer = {0x00000000},
     .x1200_SDOServerParameter = {
         .highestSub_indexSupported = 0x02,
         .COB_IDClientToServerRx = 0x00000600,
@@ -197,6 +201,7 @@ OD_ATTR_RAM OD_RAM_t OD_RAM = {
     .x2100_errorStatusBits = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
     .x2110_variableInt32_sub0 = 0x10,
     .x2110_variableInt32 = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+    .x2500_distanciaSensor = 0,
     .x6000_readDigitalInput8_bit_sub0 = 0x08,
     .x6000_readDigitalInput8_bit = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
     .x6200_writeDigitalOutput8_bit_sub0 = 0x08,
@@ -252,9 +257,11 @@ typedef struct {
     OD_obj_var_t o_1012_COB_IDTimeStampObject;
     OD_obj_var_t o_1014_COB_ID_EMCY;
     OD_obj_var_t o_1015_inhibitTimeEMCY;
+    OD_obj_array_t o_1016_consumerHeartbeatTime;
     OD_obj_var_t o_1017_producerHeartbeatTime;
     OD_obj_record_t o_1018_identity[5];
     OD_obj_var_t o_1019_synchronousCounterOverflowValue;
+    OD_obj_array_t o_1028_emergencyConsumer;
     OD_obj_record_t o_1200_SDOServerParameter[3];
     OD_obj_record_t o_1400_RPDOCommunicationParameter[4];
     OD_obj_record_t o_1401_RPDOCommunicationParameter[4];
@@ -280,6 +287,7 @@ typedef struct {
     OD_obj_record_t o_2120_demoRecord[7];
     OD_obj_record_t o_2121_demoStrings[4];
     OD_obj_var_t o_2122_demoDomain;
+    OD_obj_var_t o_2500_distanciaSensor;
     OD_obj_array_t o_6000_readDigitalInput8_bit;
     OD_obj_array_t o_6200_writeDigitalOutput8_bit;
     OD_obj_array_t o_6401_readAnalogInput16_bit;
@@ -366,6 +374,14 @@ static CO_PROGMEM ODObjs_t ODObjs = {
         .attribute = ODA_SDO_RW | ODA_MB,
         .dataLength = 2
     },
+    .o_1016_consumerHeartbeatTime = {
+        .dataOrig0 = &OD_PERSIST_COMM.x1016_consumerHeartbeatTime_sub0,
+        .dataOrig = &OD_PERSIST_COMM.x1016_consumerHeartbeatTime[0],
+        .attribute0 = ODA_SDO_R,
+        .attribute = ODA_SDO_RW | ODA_MB,
+        .dataElementLength = 4,
+        .dataElementSizeof = sizeof(uint32_t)
+    },
     .o_1017_producerHeartbeatTime = {
         .dataOrig = &OD_PERSIST_COMM.x1017_producerHeartbeatTime,
         .attribute = ODA_SDO_RW | ODA_MB,
@@ -407,6 +423,14 @@ static CO_PROGMEM ODObjs_t ODObjs = {
         .dataOrig = &OD_PERSIST_COMM.x1019_synchronousCounterOverflowValue,
         .attribute = ODA_SDO_RW,
         .dataLength = 1
+    },
+    .o_1028_emergencyConsumer = {
+        .dataOrig0 = &OD_RAM.x1028_emergencyConsumer_sub0,
+        .dataOrig = &OD_RAM.x1028_emergencyConsumer[0],
+        .attribute0 = ODA_SDO_R,
+        .attribute = ODA_SDO_RW | ODA_MB,
+        .dataElementLength = 4,
+        .dataElementSizeof = sizeof(uint32_t)
     },
     .o_1200_SDOServerParameter = {
         {
@@ -1241,6 +1265,11 @@ static CO_PROGMEM ODObjs_t ODObjs = {
         .attribute = ODA_SDO_RW,
         .dataLength = 0
     },
+    .o_2500_distanciaSensor = {
+        .dataOrig = &OD_RAM.x2500_distanciaSensor,
+        .attribute = ODA_SDO_RW | ODA_TPDO | ODA_MB,
+        .dataLength = 2
+    },
     .o_6000_readDigitalInput8_bit = {
         .dataOrig0 = &OD_RAM.x6000_readDigitalInput8_bit_sub0,
         .dataOrig = &OD_RAM.x6000_readDigitalInput8_bit[0],
@@ -1294,9 +1323,11 @@ static OD_ATTR_OD OD_entry_t ODList[] = {
     {0x1012, 0x01, ODT_VAR, &ODObjs.o_1012_COB_IDTimeStampObject, NULL},
     {0x1014, 0x01, ODT_VAR, &ODObjs.o_1014_COB_ID_EMCY, NULL},
     {0x1015, 0x01, ODT_VAR, &ODObjs.o_1015_inhibitTimeEMCY, NULL},
+    {0x1016, 0x09, ODT_ARR, &ODObjs.o_1016_consumerHeartbeatTime, NULL},
     {0x1017, 0x01, ODT_VAR, &ODObjs.o_1017_producerHeartbeatTime, NULL},
     {0x1018, 0x05, ODT_REC, &ODObjs.o_1018_identity, NULL},
     {0x1019, 0x01, ODT_VAR, &ODObjs.o_1019_synchronousCounterOverflowValue, NULL},
+    {0x1028, 0x02, ODT_ARR, &ODObjs.o_1028_emergencyConsumer, NULL},
     {0x1200, 0x03, ODT_REC, &ODObjs.o_1200_SDOServerParameter, NULL},
     {0x1400, 0x04, ODT_REC, &ODObjs.o_1400_RPDOCommunicationParameter, NULL},
     {0x1401, 0x04, ODT_REC, &ODObjs.o_1401_RPDOCommunicationParameter, NULL},
@@ -1322,6 +1353,7 @@ static OD_ATTR_OD OD_entry_t ODList[] = {
     {0x2120, 0x07, ODT_REC, &ODObjs.o_2120_demoRecord, NULL},
     {0x2121, 0x04, ODT_REC, &ODObjs.o_2121_demoStrings, NULL},
     {0x2122, 0x01, ODT_VAR, &ODObjs.o_2122_demoDomain, NULL},
+    {0x2500, 0x01, ODT_VAR, &ODObjs.o_2500_distanciaSensor, NULL},
     {0x6000, 0x09, ODT_ARR, &ODObjs.o_6000_readDigitalInput8_bit, NULL},
     {0x6200, 0x09, ODT_ARR, &ODObjs.o_6200_writeDigitalOutput8_bit, NULL},
     {0x6401, 0x11, ODT_ARR, &ODObjs.o_6401_readAnalogInput16_bit, NULL},
